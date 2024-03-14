@@ -26,14 +26,15 @@ def get_spy():
     request = requests.get(url,headers={'User-Agent': 'Mozilla/5.0'})
     soup = bs(request.text, "lxml")
     stats = soup.find('table',class_='table table-hover table-borderless table-sm')
-    df =pd.read_html(str(stats))[0]
+    df = pd.read_html(str(stats))[0]
     df['% Chg'] = df['% Chg'].str.strip('()-%')
     df['% Chg'] = pd.to_numeric(df['% Chg'])
     df['Chg'] = pd.to_numeric(df['Chg'])
+    df = df.drop('#', axis=1)
     return df
 
 def get_qqq():
-    """ Dataframe of info of all tickers in Nasdaq. """
+    """ Dataframe of info of all tickers in Nasdaq 100. """
     df = pd.DataFrame()
     urls = ['https://www.dividendmax.com/market-index-constituents/nasdaq-100',
     'https://www.dividendmax.com/market-index-constituents/nasdaq-100?page=2',
@@ -43,12 +44,17 @@ def get_qqq():
         request = requests.get(url,headers={'User-Agent': 'Mozilla/5.0'})
         soup = bs(request.text, "lxml")
         stats = soup.find('table',class_='mdc-data-table__table')
-        temp =pd.read_html(str(stats))[0]
+        temp = pd.read_html(str(stats))[0]
+        temp.rename(columns={'Market Cap':'Market Cap $bn'},inplace=True)
+        temp['Market Cap $bn'] = temp['Market Cap $bn'].str.strip("£$bn")
+        temp['Market Cap $bn'] = temp['Market Cap $bn'].str.replace('m', '*1e-3').astype(str)
+        temp['Market Cap $bn'] = temp['Market Cap $bn'].apply(lambda x: eval(x))
+        temp['Market Cap $bn'] = pd.to_numeric(temp['Market Cap $bn'])
         df = df.append(temp)
-        df.rename(columns={'Market Cap':'Market Cap $bn'},inplace=True)
-        df['Market Cap $bn'] = df['Market Cap $bn'].str.strip("£$bn")
-        df['Market Cap $bn'] = pd.to_numeric(df['Market Cap $bn'])
-        df = df.sort_values('Market Cap $bn',ascending=False)
+    df = df.sort_values('Market Cap $bn',ascending=False)
+    df = df.drop('Unnamed: 2', axis=1)
+    df.rename(columns={'Ticker':'Symbol'},inplace=True)
+    df = df.reset_index(drop=True)
     return df
 
 class NestedObject:
