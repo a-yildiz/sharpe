@@ -1,5 +1,5 @@
 # Choose from {'back_from_today', 'interval'}.
-method: 'interval'
+method: 'back_from_today'
 
 # (Method A) How many days/months/years in total is the start day back from today to demonstrate?
 back_from_today:
@@ -16,14 +16,14 @@ interval:
 sharpe:
   period:
     days: 0
-    months: 3
+    months: 6
     years: 0
 
 # Portfolio rebalance period.
 rebalance:
   period:
     days: 0
-    months: 3
+    months: 1
     years: 0
 
 # Benchmark tickers.
