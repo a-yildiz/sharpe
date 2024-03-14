@@ -1,3 +1,3 @@
 # sharpe
 
-Sharpe-optimized portfolio.
+Coming soon: Sharpe-optimized portfolio generation.

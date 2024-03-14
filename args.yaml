@@ -1,0 +1,37 @@
+# Choose from {'back_from_today', 'interval'}.
+method: 'interval'
+
+# (Method A) How many days/months/years in total is the start day back from today to demonstrate?
+back_from_today:
+  days: 0
+  months: 0
+  years: 5
+
+# (Method B) What is the date interval of interest to demonstrate? Format as 'mm-dd-yyyy'.
+interval:
+  start_date: '12-1-2019'
+  end_date: '1-1-2020'
+
+# Sharpe compute period.
+sharpe:
+  period:
+    days: 0
+    months: 3
+    years: 0
+
+# Portfolio rebalance period.
+rebalance:
+  period:
+    days: 0
+    months: 3
+    years: 0
+
+# Benchmark tickers.
+benchmark:
+  market: '^GSPC'
+  riskfree: '^IRX'
+
+# Optimized portfolio params.
+params:
+  no_of_companies: 10
+  aggressiveness: 1.0
