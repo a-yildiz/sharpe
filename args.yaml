@@ -23,15 +23,18 @@ sharpe:
 rebalance:
   period:
     days: 0
-    months: 1
+    months: 0
     years: 0
 
 # Benchmark tickers.
 benchmark:
-  market: '^GSPC'
+  market: 'VTI'
   riskfree: '^IRX'
 
 # Optimized portfolio params.
 params:
-  no_of_companies: 10
-  aggressiveness: 1.0
+  no_of_companies: 5
+
+# Displaying results.
+display:
+  verbose: True
