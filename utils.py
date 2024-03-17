@@ -74,7 +74,7 @@ def load_args(filepath='args.yaml'):
     return NestedObject(data)
 
 def str2datetime(date_str):
-    return datetime.strptime(date_str, '%m-%d-%Y')
+    return datetime.strptime(date_str, '%Y-%m-%d')
 
 def parse_period_date(period):
     d = period.days
@@ -99,7 +99,7 @@ def get_dates(args):
 
 
 def get_pdr_data(tickers, startdate, enddate, progress=False, clean=True):
-    df = pdr.get_data_yahoo(tickers, start=startdate, end=enddate, progress=progress)['Adj Close']
+    df = pdr.get_data_yahoo(tickers, start=startdate, end=enddate, progress=progress)['Close']
     # df = df.xs(key='Adj Close', level='Price', axis=1)
     if not clean:
         return df.sort_index()
@@ -162,7 +162,8 @@ def compute_log_return(df, was_annual=False, retain_symbols=False):
             return pd.DataFrame(riskfree_daily_log_return, columns=df.columns)
     else:
         # Stock market data is already retrieved as daily.
-        market_return = np.diff(np.log(df), axis=0)
+        # market_return = np.diff(np.log(df), axis=0)
+        market_return = df.pct_change().dropna().values
         if not retain_symbols:
             return market_return
         elif isinstance(df, pd.Series):
@@ -213,10 +214,10 @@ def get_stocks_sharpe_from_data(stocks_data, riskfree_ticker, startdate, enddate
     return stocks_sharpe.sort_values(ascending=False)
 
 class Portfolio():
-    def __init__(self):
-        self.previous_tickers = {}
-        self.current_tickers = {}
-        self.value = 0.00  # US Dollars
+    def __init__(self, init_balance):
+        self.previous_tickers = None
+        self.current_tickers = None
+        self.value = init_balance  # US Dollars
         self.size = 0
 
     def rebalance(self, df, min_threshold=0.0):
@@ -228,17 +229,21 @@ class Portfolio():
         tickers = tickers[mask]
         vals = vals[mask]
 
-        self.current_tickers = {t:v for (t,v) in zip(tickers, vals)}
+        self.current_tickers = pd.DataFrame(np.nan, index=tickers, columns=['!Utility', '%Weight', '$Value'])
+        self.current_tickers.loc[tickers, '!Utility'] = vals
+        self.current_tickers.loc[tickers, '%Weight'] = vals/vals.sum()
+        self.current_tickers.loc[tickers, '$Value'] = self.value * self.current_tickers.loc[tickers, '%Weight']
+
         self.size = len(tickers)
 
+
     def display(self):
-        print(f'Ticker\tUtility\tWeight')
-        total = sum(self.current_tickers.values())
-        for key, value in self.current_tickers.items():
-            print(f'{key}:\t{round(value, ndigits=4)}\t{round(value/total, ndigits=4)}')
+        print(self.current_tickers)
 
     def update(self, stocks_return, dt):
         dt_str = dt.strftime('%Y-%m-%d')
-        total = sum(self.current_tickers.values())
-        todays_returns = [stocks_return.loc[dt_str][k] * v/total for (k,v) in self.current_tickers.items()]
-        self.value += sum(todays_returns)
+        todays_returns = stocks_return.loc[dt_str, self.current_tickers.index]
+        self.current_tickers['$Value'] *= (1+todays_returns)
+
+        self.value = self.current_tickers['$Value'].sum()
+        self.current_tickers['%Weight'] = self.current_tickers['$Value'] / self.value

@@ -5,12 +5,12 @@ method: 'back_from_today'
 back_from_today:
   days: 0
   months: 0
-  years: 5
+  years: 2
 
-# (Method B) What is the date interval of interest to demonstrate? Format as 'mm-dd-yyyy'.
+# (Method B) What is the date interval of interest to demonstrate? Format as 'yyyy-mm-dd'.
 interval:
-  start_date: '12-1-2019'
-  end_date: '1-1-2020'
+  start_date: '2019-11-01'
+  end_date: '2020-11-01'
 
 # Sharpe compute period.
 sharpe:
@@ -22,7 +22,7 @@ sharpe:
 # Portfolio rebalance period.
 rebalance:
   period:
-    days: 0
+    days: 14
     months: 0
     years: 0
 
@@ -33,8 +33,9 @@ benchmark:
 
 # Optimized portfolio params.
 params:
-  no_of_companies: 5
+  no_of_companies: 10
 
 # Displaying results.
 display:
-  verbose: True
+  initial_balance: 100.00  # US Dollars 
+  verbose: False
