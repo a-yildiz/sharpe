@@ -1,5 +1,5 @@
 # Choose from {'back_from_today', 'interval'}.
-method: 'back_from_today'
+method: 'interval'
 
 # (Method A) How many days/months/years in total is the start day back from today to demonstrate?
 back_from_today:
@@ -9,7 +9,7 @@ back_from_today:
 
 # (Method B) What is the date interval of interest to demonstrate? Format as 'yyyy-mm-dd'.
 interval:
-  start_date: '2019-11-01'
+  start_date: '2017-11-01'
   end_date: '2020-11-01'
 
 # Sharpe compute period.
@@ -22,20 +22,20 @@ sharpe:
 # Portfolio rebalance period.
 rebalance:
   period:
-    days: 14
-    months: 0
+    days: 10
+    months: 8
     years: 0
 
 # Benchmark tickers.
 benchmark:
-  market: 'VTI'
+  market: '^GSPC'
   riskfree: '^IRX'
 
 # Optimized portfolio params.
 params:
-  no_of_companies: 10
+  no_of_companies: 3
 
 # Displaying results.
 display:
   initial_balance: 100.00  # US Dollars 
-  verbose: False
+  verbose: True

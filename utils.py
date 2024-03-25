@@ -29,7 +29,7 @@ def get_spy():
     stats = soup.find('table',class_='table table-hover table-borderless table-sm')
     df = pd.read_html(str(stats))[0]
     df['% Chg'] = df['% Chg'].str.strip('()-%')
-    df['% Chg'] = pd.to_numeric(df['% Chg'])
+    df['% Chg'] = pd.to_numeric(df['% Chg'], errors='coerce').fillna(0)
     df['Chg'] = pd.to_numeric(df['Chg'])
     df = df.drop('#', axis=1)
     print(f"SPY: Contains {len(df)} tickers.")
@@ -91,14 +91,10 @@ def get_dates(args):
         startdate = enddate - parse_period_date(args.back_from_today)
     else:
         ValueError("Incorrect value in args.yaml for method.")
-
-    # dt1 = startdate - parse_period_date(args.sharpe.period)
-    # dt2 = startdate - parse_period_date(args.rebalance.period)
-    # startdate = min(dt1, dt2)
     return startdate, enddate
 
-
 def get_pdr_data(tickers, startdate, enddate, progress=False, clean=True):
+    """ Returns Yahoo Finance price data for the given tickers. """
     df = pdr.get_data_yahoo(tickers, start=startdate, end=enddate, progress=progress)['Close']
     # df = df.xs(key='Adj Close', level='Price', axis=1)
     if not clean:
@@ -107,12 +103,13 @@ def get_pdr_data(tickers, startdate, enddate, progress=False, clean=True):
         return clean_df(df.sort_index())
 
 def get_benchmark_data(market_ticker, riskfree_ticker, startdate, enddate):
+    """ Get data for the benchmark tickers provided in the args.yaml file. """
     market_data = get_pdr_data(market_ticker, startdate, enddate, progress=False, clean=False)
     nonholiday_dates = market_data.index[:-1]
-    market_return = compute_log_return(market_data, was_annual=False, retain_symbols=True)
+    market_return = compute_return(market_data, was_annual=False, retain_symbols=True)
 
     riskfree_data = get_pdr_data(riskfree_ticker, startdate, enddate, progress=False, clean=False)
-    riskfree_return = compute_log_return(riskfree_data, was_annual=True, retain_symbols=True)
+    riskfree_return = compute_return(riskfree_data, was_annual=True, retain_symbols=True)
     return market_return, riskfree_return, sorted(list(nonholiday_dates.to_pydatetime()))
 
 def is_df_okay(df):
@@ -125,14 +122,13 @@ def clean_df(df):
     return df.drop(bad_cols, axis=1)
 
 def nearest_datetime(datetime_list, item):
+    """ Get nearest date in a list. """
     diffs = [abs(dt - item) for dt in datetime_list]
     i = np.argmin(diffs)
     return datetime_list[i]
 
 def linspace_datetime(datetime_list, start, end, delta, include_end=False):
-    # start = datetime.datetime(2019, 12, 1, 0, 0)
-    # end = datetime.datetime(2020, 1, 1, 0, 0)
-    # delta = relativedelta(months=6)
+    """ Return a list of linearly spaced dates. """
     start = datetime.combine(start, time())
     end = datetime.combine(end, time())
 
@@ -148,27 +144,31 @@ def linspace_datetime(datetime_list, start, end, delta, include_end=False):
         result.add(end)
     return sorted(list(result))
 
-def compute_log_return(df, was_annual=False, retain_symbols=False):
+def compute_return(df, was_annual=False, retain_symbols=False):
+    """ Compute daily return for every ticker in the provided df. """
     if was_annual:
         # Riskfree data should be converted to daily from annual.
         riskfree_annual_return = (df/100)[:-1]
-        riskfree_annual_log_return = np.log(1+riskfree_annual_return)
-        riskfree_daily_log_return = (riskfree_annual_log_return/252).to_numpy()
+        riskfree_daily_return = (1 + riskfree_annual_return)**(1/252) - 1
+        riskfree_daily_return = riskfree_daily_return.to_numpy()
+        # riskfree_annual_log_return = np.log(1 + riskfree_annual_return)
+        # riskfree_daily_log_return = (riskfree_annual_log_return/252).to_numpy()
+        # riskfree_daily_return = riskfree_daily_log_return
         if not retain_symbols:
-            return riskfree_daily_log_return
+            return riskfree_daily_return
         elif isinstance(df, pd.Series):
-            return pd.DataFrame(riskfree_daily_log_return, index=df.index[:-1])
+            return pd.DataFrame(riskfree_daily_return, index=df.index[:-1])
         else:  # df is a pd.DataFrame instance.
-            return pd.DataFrame(riskfree_daily_log_return, columns=df.columns)
+            return pd.DataFrame(riskfree_daily_return, columns=df.columns)
     else:
-        # Stock market data is already retrieved as daily.
+        # Stock market data is already retrieved as daily from Yahoo.
         # market_return = np.diff(np.log(df), axis=0)
         market_return = df.pct_change().dropna().values
         if not retain_symbols:
             return market_return
         elif isinstance(df, pd.Series):
             return pd.DataFrame(market_return, index=df.index[:-1])
-        else:  # df is a pd.DataFrame instance.
+        else:  # df is already a pd.DataFrame instance.
             return pd.DataFrame(market_return, columns=df.columns, index=df.index[:-1])
     
 def compute_sharpe_ratio(ticker_return_df, riskfree_return_df, retain_symbols=False):
@@ -186,17 +186,19 @@ def compute_sharpe_ratio(ticker_return_df, riskfree_return_df, retain_symbols=Fa
         return sharpe
     
 def get_stocks_sharpe(stocks_tickers, riskfree_ticker, startdate, enddate, progress=True, clean=True):
+    """ Download, and compute sharpe ratio for the provided tickers. """
     stocks_data = get_pdr_data(stocks_tickers, startdate, enddate, progress=progress, clean=clean)
     assert is_df_okay(stocks_data)
     
     riskfree_data = get_pdr_data(riskfree_ticker, startdate, enddate, progress=False, clean=False)
-    riskfree_return = compute_log_return(riskfree_data, was_annual=True)
+    riskfree_return = compute_return(riskfree_data, was_annual=True)
     
-    stocks_return = compute_log_return(stocks_data, retain_symbols=True)
+    stocks_return = compute_return(stocks_data, retain_symbols=True)
     stocks_sharpe = compute_sharpe_ratio(stocks_return, riskfree_return, retain_symbols=True)
     return stocks_sharpe.sort_values(ascending=False)
 
 def get_stocks_sharpe_from_data(stocks_data, riskfree_ticker, startdate, enddate):
+    """ Faster than above. Compute sharpe ratios from data downloaded earlier. """
     assert is_df_okay(stocks_data)
     riskfree_data = get_pdr_data(riskfree_ticker, startdate, enddate, progress=False, clean=False)
 
@@ -207,8 +209,8 @@ def get_stocks_sharpe_from_data(stocks_data, riskfree_ticker, startdate, enddate
     mask = [(item in riskfree_data.index) for item in stocks_data.index]  # returns list of boolean mask
     stocks_data = stocks_data[mask]
     
-    stocks_return = compute_log_return(stocks_data, retain_symbols=True)
-    riskfree_return = compute_log_return(riskfree_data, was_annual=True, retain_symbols=False)
+    stocks_return = compute_return(stocks_data, retain_symbols=True)
+    riskfree_return = compute_return(riskfree_data, was_annual=True, retain_symbols=False)
     
     stocks_sharpe = compute_sharpe_ratio(stocks_return, riskfree_return, retain_symbols=True)
     return stocks_sharpe.sort_values(ascending=False)
@@ -217,8 +219,8 @@ class Portfolio():
     def __init__(self, init_balance):
         self.previous_tickers = None
         self.current_tickers = None
-        self.value = init_balance  # US Dollars
-        self.size = 0
+        self.value = init_balance  # float, US Dollars
+        self.size = 0  # int, num. of stocks
 
     def rebalance(self, df, min_threshold=0.0):
         self.previous_tickers = self.current_tickers
@@ -233,9 +235,7 @@ class Portfolio():
         self.current_tickers.loc[tickers, '!Utility'] = vals
         self.current_tickers.loc[tickers, '%Weight'] = vals/vals.sum()
         self.current_tickers.loc[tickers, '$Value'] = self.value * self.current_tickers.loc[tickers, '%Weight']
-
         self.size = len(tickers)
-
 
     def display(self):
         print(self.current_tickers)
