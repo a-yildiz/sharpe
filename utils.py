@@ -11,6 +11,8 @@ from pandas_datareader import data as pdr
 import yfinance as yf
 yf.pdr_override()
 
+import matplotlib.pyplot as plt
+
 def get_dji():
     """ Dataframe of info of all tickers in Dow Jones Industrial Average. """
     url = 'https://www.dogsofthedow.com/dow-jones-industrial-average-companies.htm'
@@ -185,20 +187,42 @@ def compute_sharpe_ratio(ticker_return_df, riskfree_return_df, retain_symbols=Fa
     else:  # is a pd.Series instance, and already has symbols retained.
         return sharpe
     
-def get_stocks_sharpe(stocks_tickers, riskfree_ticker, startdate, enddate, progress=True, clean=True):
-    """ Download, and compute sharpe ratio for the provided tickers. """
+def compute_sortino_ratio(ticker_return_df, riskfree_return_df, retain_symbols=False):
+    """ Compute daily Sortino ratio. """
+    if np.array(ticker_return_df).ndim == 1:
+        excess_return = ticker_return_df - riskfree_return_df
+    else:
+        excess_return = ticker_return_df - riskfree_return_df.reshape(-1, 1)
+    downside_return = excess_return.copy()
+    downside_return[downside_return > 0] = 0
+    sortino = excess_return.mean(axis=0) / np.sqrt(np.mean(downside_return**2, axis=0))
+    if not retain_symbols:
+        return np.array(sortino)
+    elif retain_symbols and isinstance(ticker_return_df, np.ndarray):
+        return pd.DataFrame(sortino, columns=ticker_return_df.columns)
+    else:  # is a pd.Series instance, and already has symbols retained.
+        return sortino
+    
+def get_stocks_utility(stocks_tickers, riskfree_ticker, startdate, enddate, utility, progress=True, clean=True):
+    """ Download, and compute sharpe/sortino ratio for the provided tickers. """
     stocks_data = get_pdr_data(stocks_tickers, startdate, enddate, progress=progress, clean=clean)
     assert is_df_okay(stocks_data)
     
     riskfree_data = get_pdr_data(riskfree_ticker, startdate, enddate, progress=False, clean=False)
     riskfree_return = compute_return(riskfree_data, was_annual=True)
-    
     stocks_return = compute_return(stocks_data, retain_symbols=True)
-    stocks_sharpe = compute_sharpe_ratio(stocks_return, riskfree_return, retain_symbols=True)
-    return stocks_sharpe.sort_values(ascending=False)
+    
+    if utility == 'sharpe':
+        stocks_utility = compute_sharpe_ratio(stocks_return, riskfree_return, retain_symbols=True)
+    elif utility == 'sortino':
+        stocks_utility = compute_sortino_ratio(stocks_return, riskfree_return, retain_symbols=True)
+    else:
+        ValueError("Incorrect arg for utility.")
+    return stocks_utility.sort_values(ascending=False)
+    
 
-def get_stocks_sharpe_from_data(stocks_data, riskfree_ticker, startdate, enddate):
-    """ Faster than above. Compute sharpe ratios from data downloaded earlier. """
+def get_stocks_utility_from_data(stocks_data, riskfree_ticker, startdate, enddate, utility):
+    """ Faster than above. Compute sharpe/sortino ratios from data downloaded earlier. """
     assert is_df_okay(stocks_data)
     riskfree_data = get_pdr_data(riskfree_ticker, startdate, enddate, progress=False, clean=False)
 
@@ -212,8 +236,13 @@ def get_stocks_sharpe_from_data(stocks_data, riskfree_ticker, startdate, enddate
     stocks_return = compute_return(stocks_data, retain_symbols=True)
     riskfree_return = compute_return(riskfree_data, was_annual=True, retain_symbols=False)
     
-    stocks_sharpe = compute_sharpe_ratio(stocks_return, riskfree_return, retain_symbols=True)
-    return stocks_sharpe.sort_values(ascending=False)
+    if utility == 'sharpe':
+        stocks_utility = compute_sharpe_ratio(stocks_return, riskfree_return, retain_symbols=True)
+    if utility == 'sortino':
+        stocks_utility = compute_sortino_ratio(stocks_return, riskfree_return, retain_symbols=True)
+    else:
+        ValueError("Incorrect arg for utility.")
+    return stocks_utility.sort_values(ascending=False)
 
 class Portfolio():
     def __init__(self, init_balance):
@@ -221,6 +250,13 @@ class Portfolio():
         self.current_tickers = None
         self.value = init_balance  # float, US Dollars
         self.size = 0  # int, num. of stocks
+        # self.fig, self.ax = plt.subplots()
+
+    def verbose(self):
+        print(self.current_tickers)
+
+    def plot(self):
+        pass
 
     def rebalance(self, df, min_threshold=0.0):
         self.previous_tickers = self.current_tickers
@@ -237,9 +273,6 @@ class Portfolio():
         self.current_tickers.loc[tickers, '$Value'] = self.value * self.current_tickers.loc[tickers, '%Weight']
         self.size = len(tickers)
 
-    def display(self):
-        print(self.current_tickers)
-
     def update(self, stocks_return, dt):
         dt_str = dt.strftime('%Y-%m-%d')
         todays_returns = stocks_return.loc[dt_str, self.current_tickers.index]
@@ -247,3 +280,5 @@ class Portfolio():
 
         self.value = self.current_tickers['$Value'].sum()
         self.current_tickers['%Weight'] = self.current_tickers['$Value'] / self.value
+
+        # self.ax.plot(x_values, y_values)
