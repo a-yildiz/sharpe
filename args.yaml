@@ -1,45 +1,45 @@
 # Choose from {'back_from_today', 'interval'}.
-method: 'interval'
+method: "back_from_today"
 
 # Choose from {'sharpe', 'sortino'}.
-utility: 'sharpe'
+utility: "sharpe"
 
 # (Method A) How many days/months/years in total is the start day back from today to demonstrate?
 back_from_today:
-  days: 1
-  months: 0
-  years: 3
+    days: 1
+    months: 0
+    years: 3
 
 # (Method B) What is the date interval of interest to demonstrate? Format as 'yyyy-mm-dd'.
 interval:
-  start_date: '2018-11-01'
-  end_date: '2021-11-01'
+    start_date: "2019-03-26"
+    end_date: "2020-03-25"
 
 # Sharpe compute period.
 sharpe:
-  period:
-    days: 0
-    months: 0
-    years: 1
+    period:
+        days: 0
+        months: 0
+        years: 1
 
 # Portfolio rebalance period.
 rebalance:
-  period:
-    days: 0
-    months: 1
-    years: 0
+    period:
+        days: 0
+        months: 1
+        years: 0
 
 # Benchmark tickers.
 benchmark:
-  market: '^GSPC'
-  riskfree: '^IRX'
+    market: "^GSPC"
+    riskfree: "^IRX"
 
 # Optimized portfolio params.
 params:
-  no_of_companies: 5
+    no_of_companies: 5
 
 # Displaying results.
 display:
-  initial_balance: 100.00  # US Dollars 
-  verbose: False
-  plot: False
+    initial_balance: 100.00 # US Dollars
+    verbose: True
+    plot: False

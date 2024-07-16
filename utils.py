@@ -253,6 +253,7 @@ class Portfolio():
         # self.fig, self.ax = plt.subplots()
 
     def verbose(self):
+        print("Portfolio $Value:", self.value)
         print(self.current_tickers)
 
     def plot(self):
